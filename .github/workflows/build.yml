@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       app:
-        description: App ID to rebuild (empty = all)
+        description: App IDs to rebuild, space-separated (empty = all)
         required: false
 
 jobs:

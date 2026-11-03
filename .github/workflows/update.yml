@@ -1,0 +1,33 @@
+# Daily check for new upstream releases (apps with an apps/<app-id>/upstream
+# file, see tools/update.sh). Commits the regenerated manifests and starts the
+# Build workflow for them: a push made with GITHUB_TOKEN does not trigger it.
+name: Update
+
+on:
+  schedule:
+    - cron: '0 20 * * *'   # 03:00 WIB
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency: update
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check upstream releases
+        run: |
+          changed=$(tools/update.sh | xargs)
+          [[ -n $changed ]] || { echo "Everything is up to date"; exit 0; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps
+          git commit -m "Update $changed"
+          git push
+          gh workflow run build.yml --ref main -f app="$changed"
