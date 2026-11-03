@@ -1,0 +1,137 @@
+# Builds the Flatpak apps under apps/<app-id>/ and publishes them to the IGOS
+# Nusantara Flatpak repository on R2: r2:repo/flatpak/repo, served at
+# https://r2.igos-nusantara.or.id/flatpak/repo/ (remote file: ../igos.flatpakrepo).
+# A push rebuilds only the apps whose directory changed; a manual run rebuilds
+# one app (input app) or all of them.
+#
+# Secrets (same values as in igos-nusantara/bayu): R2_ACCESS_KEY_ID,
+# R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and BAYU_REPO_GPG_KEY (the IGOS repository
+# key, armored private key; signs the OSTree commits and summary).
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/**']
+  workflow_dispatch:
+    inputs:
+      app:
+        description: App ID to rebuild (empty = all)
+        required: false
+
+jobs:
+  apps:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.list.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: list
+        env:
+          BEFORE: ${{ github.event.before }}
+          APP: ${{ inputs.app }}
+        run: |
+          if [[ -n $APP ]]; then
+            apps=$APP
+          elif [[ ${{ github.event_name }} == push ]] && git cat-file -e "$BEFORE" 2>/dev/null; then
+            apps=$(git diff --name-only "$BEFORE" HEAD -- apps/ | cut -d/ -f2 | sort -u)
+          else
+            apps=$(ls apps)
+          fi
+          # Deleted apps have no directory left to build.
+          apps=$(for a in $apps; do [[ -d apps/$a ]] && echo "$a"; done)
+          echo "apps=$(jq -cnR '[inputs | select(length > 0)]' <<<"$apps")" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: apps
+    if: needs.apps.outputs.apps != '[]'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      options: --privileged
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.apps.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build
+        run: |
+          manifest=$(ls apps/${{ matrix.app }}/${{ matrix.app }}.{yml,yaml,json} 2>/dev/null | head -1)
+          flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak-builder --disable-rofiles-fuse --force-clean --install-deps-from=flathub \
+            --default-branch=stable --repo=app-repo build "$manifest"
+          tar -cf app-repo.tar app-repo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repo-${{ matrix.app }}
+          path: app-repo.tar
+          retention-days: 3
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency: publish
+    env:
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      RCLONE_CONFIG_R2_ACL: private
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: 'true'
+      DEST: r2:repo/flatpak
+      URL: https://r2.igos-nusantara.or.id/flatpak
+    steps:
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq flatpak ostree
+          curl -fsSL https://rclone.org/install.sh | sudo bash >/dev/null
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: repo-*
+      - name: Import key
+        env:
+          KEY: ${{ secrets.BAYU_REPO_GPG_KEY }}
+        run: |
+          export GNUPGHOME=$RUNNER_TEMP/gnupg
+          mkdir -m 700 "$GNUPGHOME"
+          gpg --batch --quiet --import <<<"$KEY"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          echo "KEYID=$(gpg --batch --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')" >> "$GITHUB_ENV"
+      # ponytail: downloads the whole repo each run (R2 egress is free); switch to
+      # syncing only refs/summary + parent commits once the repo gets big.
+      - name: Fetch the published repo
+        run: |
+          rclone sync "$DEST/repo" repo --fast-list
+          [[ -f repo/config ]] || ostree init --mode=archive-z2 --repo=repo
+      - name: Commit the new builds
+        run: |
+          for t in repo-*/app-repo.tar; do
+            d=$(dirname "$t") && tar -xf "$t" -C "$d"
+            flatpak build-commit-from --gpg-sign="$KEYID" --gpg-homedir="$GNUPGHOME" \
+              --src-repo="$d/app-repo" repo
+          done
+          flatpak build-update-repo --gpg-sign="$KEYID" --gpg-homedir="$GNUPGHOME" \
+            --generate-static-deltas --prune --prune-depth=3 \
+            --title="IGOS Nusantara" repo
+          cat > igos.flatpakrepo <<EOF
+          [Flatpak Repo]
+          Title=IGOS Nusantara
+          Url=$URL/repo/
+          Homepage=https://igos-nusantara.or.id/
+          GPGKey=$(gpg --export "$KEYID" | base64 -w0)
+          EOF
+          ostree refs --repo=repo
+      # Objects first, then refs and summary, so clients never see a ref whose
+      # objects are not uploaded yet. The second pass also deletes pruned objects.
+      - name: Upload
+        run: |
+          rclone copy repo "$DEST/repo" --fast-list --exclude '/summary*' --exclude '/refs/**' --exclude '/config' -v
+          rclone sync repo "$DEST/repo" --fast-list --header-upload 'Cache-Control: no-cache' -v
+          rclone copyto igos.flatpakrepo "$DEST/igos.flatpakrepo" --header-upload 'Cache-Control: no-cache' -v
