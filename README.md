@@ -13,7 +13,8 @@ flatpak install igos <app-id>
 ArtCraft Launcher and the ArtCraft Craft apps (PhotoCraft, VectorCraft, FilmCraft,
 LightCraft, PdfCraft, EffectCraft, DesignCraft, FigCraft, TextureCraft, WordCraft,
 SoundCraft, DeckCraft, CADCraft, GridCraft) from https://getartcraft.com/apps,
-repackaged from their GitHub releases and checked for updates daily.
+repackaged from their GitHub releases, and Orange Data Mining (`si.biolab.orange`)
+from PyPI. Versions are checked for updates daily.
 
 ## Adding or updating an app
 

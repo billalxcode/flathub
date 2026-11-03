@@ -10,6 +10,7 @@ Everything is built and published by GitHub Actions; never upload to R2 by hand
 ```
 apps/<app-id>/<app-id>.yml   flatpak-builder manifest (or .yaml/.json); the app ID is the dir name
 apps/<app-id>/upstream       optional: "owner/repo" of a GitHub project to follow (see below)
+apps/<app-id>/pypi           optional: PyPI package whose "<pkg>==<version>" pin the bot bumps
 apps/<app-id>/*              patches, data files the manifest references
 tools/update.sh              regenerates manifests of apps that have an upstream file
 .github/workflows/build.yml  builds changed apps, signs and publishes them to R2
@@ -33,7 +34,12 @@ Pick the first case that fits.
    source with `sha256` or a git `commit`, keep `finish-args` minimal and comment
    each one, and ship a `.desktop`, icon and metainfo under the app ID.
 
-Cases 2 and 3 are not covered by the daily check: bump their versions by hand.
+Python apps from PyPI (example: `apps/si.biolab.orange`): base on
+`com.riverbankcomputing.PyQt.BaseApp` for Qt, `pip3 install --prefix=${FLATPAK_DEST}
+<pkg>==<version>` with `build-args: [--share=network]`, and a `pypi` file holding the
+package name so the daily check bumps the pin.
+
+Otherwise cases 2 and 3 are not covered by the daily check: bump their versions by hand.
 
 ## Checks before pushing
 

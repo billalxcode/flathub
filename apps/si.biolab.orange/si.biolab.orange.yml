@@ -1,0 +1,41 @@
+# Orange data mining (https://orangedatamining.com), installed from PyPI on top of
+# the PyQt BaseApp (PyQt6 + QtWebEngine). tools/update.sh bumps the orange3 pin
+# (file "pypi"). Not a Flathub-style offline build: pip downloads during the build.
+id: si.biolab.orange
+runtime: org.kde.Platform
+runtime-version: '6.10'
+sdk: org.kde.Sdk
+base: com.riverbankcomputing.PyQt.BaseApp
+base-version: '6.10'
+command: orange-canvas
+cleanup-commands:
+  - /app/cleanup-BaseApp.sh
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  # Add-on installer, data sets and online widgets.
+  - --share=network
+  # Open and save data files anywhere in home.
+  - --filesystem=home
+  # Help pages and HTML widgets.
+  - --env=QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess
+modules:
+  - name: orange3
+    buildsystem: simple
+    build-options:
+      build-args:
+        - --share=network
+    build-commands:
+      - pip3 install --no-cache-dir --prefix=${FLATPAK_DEST} orange3==3.40.0
+      # xgboost pulls the CUDA NCCL library (~200 MB) for multi-GPU training only.
+      - rm -rf ${FLATPAK_DEST}/lib/python3*/site-packages/nvidia ${FLATPAK_DEST}/lib/python3*/site-packages/nvidia_nccl*
+      - install -Dm644 ${FLATPAK_DEST}/lib/python3*/site-packages/Orange/canvas/icons/orange-256.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/si.biolab.orange.png
+      - install -Dm644 -t ${FLATPAK_DEST}/share/applications si.biolab.orange.desktop
+      - install -Dm644 -t ${FLATPAK_DEST}/share/metainfo si.biolab.orange.metainfo.xml
+    sources:
+      - type: file
+        path: si.biolab.orange.desktop
+      - type: file
+        path: si.biolab.orange.metainfo.xml

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Orange Data Mining
+GenericName=Data Mining
+Comment=Visual programming for data mining and machine learning
+Exec=orange-canvas
+Icon=si.biolab.orange
+Terminal=false
+Categories=Education;Science;DataVisualization;
+Keywords=data;mining;machine learning;statistics;visualization;

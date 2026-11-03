@@ -3,15 +3,25 @@
 # apps/<app-id>/upstream holds "owner/repo". The manifest is upstream's own
 # packaging/linux/flatpak/*.bundle.yml at the latest release tag, with its
 # `dir: stage` source swapped for the release's linux-x86_64 tarball.
+# Apps with apps/<app-id>/pypi ("package") instead get the "<package>==<version>"
+# pin in their hand-written manifest bumped to the latest PyPI release.
 # Prints the IDs of the apps whose manifest changed.
-#   tools/update.sh [APP-ID...]     (default: every app with an upstream file)
-# Needs gh (GH_TOKEN in CI) and curl.
+#   tools/update.sh [APP-ID...]     (default: every app with an upstream or pypi file)
+# Needs gh (GH_TOKEN in CI), curl and python3.
 set -Eeuo pipefail
 cd "$(dirname "$0")/.."
 apps=("$@")
-((${#apps[@]})) || for f in apps/*/upstream; do apps+=("$(basename "$(dirname "$f")")"); done
+((${#apps[@]})) || for f in apps/*/upstream apps/*/pypi; do [[ -f $f ]] && apps+=("$(basename "$(dirname "$f")")"); done
 
 for id in "${apps[@]}"; do
+  if [[ -f apps/$id/pypi ]]; then
+    pkg=$(<"apps/$id/pypi")
+    v=$(curl -fsSL "https://pypi.org/pypi/$pkg/json" | python3 -c 'import json, sys; print(json.load(sys.stdin)["info"]["version"])')
+    m=apps/$id/$id.yml
+    grep -q "$pkg==" "$m" || { echo "$m has no $pkg== pin" >&2; exit 1; }
+    grep -qE "$pkg==$v( |$)" "$m" || { sed -i.bak -E "s/($pkg==)[^ ]+/\1$v/" "$m" && rm "$m.bak" && echo "$id"; }
+    continue
+  fi
   repo=$(<"apps/$id/upstream")
   tag=$(gh release view -R "$repo" --json tagName -q .tagName)
   path=$(gh api "repos/$repo/git/trees/$tag?recursive=1" -q '.tree[].path' | grep -E 'flatpak/[^/]*\.bundle\.ya?ml$' | head -1)

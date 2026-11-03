@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>si.biolab.orange</id>
+  <name>Orange Data Mining</name>
+  <summary>Visual programming for data mining and machine learning</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="si.biolab">
+    <name>Bioinformatics Laboratory, University of Ljubljana</name>
+  </developer>
+  <description>
+    <p>Orange is a data mining and machine learning suite. Workflows are built by
+    connecting widgets for loading data, preprocessing, modelling, evaluation and
+    interactive visualization, with no programming needed.</p>
+  </description>
+  <url type="homepage">https://orangedatamining.com/</url>
+  <url type="bugtracker">https://github.com/biolab/orange3/issues</url>
+  <launchable type="desktop-id">si.biolab.orange.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+</component>
