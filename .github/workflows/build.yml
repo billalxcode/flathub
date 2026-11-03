@@ -66,6 +66,14 @@ jobs:
           flatpak-builder --disable-rofiles-fuse --force-clean --install-deps-from=flathub \
             --default-branch=stable --repo=app-repo build "$manifest"
           tar -cf app-repo.tar app-repo
+      # CONTRIBUTING.md, section 1: a declared SPDX licence and its text in the app.
+      - name: Check the licence
+        run: |
+          f=build/files/share
+          grep -h '<project_license>' $f/metainfo/${{ matrix.app }}.*xml ||
+            { echo "::error::no <project_license> in the metainfo"; exit 1; }
+          find $f/licenses $f/doc \( -iname '*licen[cs]e*' -o -iname 'copying*' \) 2>/dev/null | grep . ||
+            { echo "::error::no licence file in /app/share/licenses or /app/share/doc"; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: repo-${{ matrix.app }}

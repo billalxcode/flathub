@@ -32,6 +32,7 @@ modules:
       # xgboost pulls the CUDA NCCL library (~200 MB) for multi-GPU training only.
       - rm -rf ${FLATPAK_DEST}/lib/python3*/site-packages/nvidia ${FLATPAK_DEST}/lib/python3*/site-packages/nvidia_nccl*
       - install -Dm644 ${FLATPAK_DEST}/lib/python3*/site-packages/Orange/canvas/icons/orange-256.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/si.biolab.orange.png
+      - install -Dm644 -t ${FLATPAK_DEST}/share/licenses/si.biolab.orange ${FLATPAK_DEST}/lib/python3*/site-packages/orange3-*.dist-info/licenses/*
       - install -Dm644 -t ${FLATPAK_DEST}/share/applications si.biolab.orange.desktop
       - install -Dm644 -t ${FLATPAK_DEST}/share/metainfo si.biolab.orange.metainfo.xml
     sources:

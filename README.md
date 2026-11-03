@@ -18,4 +18,5 @@ from PyPI. Versions are checked for updates daily.
 
 ## Adding or updating an app
 
-See [AGENTS.md](AGENTS.md).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the rules every app must meet (licence,
+origin, identity, permissions), and [AGENTS.md](AGENTS.md) for how to add one.

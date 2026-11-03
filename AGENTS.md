@@ -2,7 +2,9 @@
 
 This repo holds the Flatpak apps IGOS Nusantara publishes at
 https://r2.igos-nusantara.or.id/flatpak/ (remote file `igos.flatpakrepo`).
-Everything is built and published by GitHub Actions; never upload to R2 by hand
+Every app must follow [CONTRIBUTING.md](CONTRIBUTING.md) (licence, origin,
+identity, permissions); read it first. Everything is built and published by
+GitHub Actions; never upload to R2 by hand
 (the R2 credentials only exist as repository secrets).
 
 ## Layout
@@ -47,7 +49,8 @@ Otherwise cases 2 and 3 are not covered by the daily check: bump their versions 
 - Build it locally when you can:
   `flatpak-builder --user --install-deps-from=flathub --force-clean --default-branch=stable --repo=/tmp/repo /tmp/build apps/<id>/<id>.yml`
 - Only x86_64 is built for now.
-- Licences allow redistribution (we host the binaries).
+- The rules in CONTRIBUTING.md hold; CI fails without `<project_license>` in the
+  metainfo or a licence file in `/app/share/licenses` or `/app/share/doc`.
 
 ## Publishing
 
