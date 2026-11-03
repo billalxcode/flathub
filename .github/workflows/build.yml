@@ -110,6 +110,8 @@ jobs:
         run: |
           rclone sync "$DEST/repo" repo --fast-list
           [[ -f repo/config ]] || ostree init --mode=archive-z2 --repo=repo
+          # R2 keeps no empty directories; ostree wants these.
+          mkdir -p repo/refs/{heads,mirrors,remotes} repo/objects repo/state repo/tmp repo/extensions
       - name: Commit the new builds
         run: |
           for t in repo-*/app-repo.tar; do
