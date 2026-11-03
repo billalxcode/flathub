@@ -1,0 +1,64 @@
+# Concat (https://concat.standalones.org), repackaged from the official Linux
+# x86_64 .deb of each GitHub release. The package keeps the program whole under
+# opt/concat with its FFmpeg, whisper.cpp and ONNX Runtime libraries beside the
+# binary, found through its RPATH ($ORIGIN/lib), so it is copied to /app/concat
+# unchanged. Upstream publishes the same tree as .rpm, Arch package and
+# AppImage.
+#
+# Built from release v0.2.8; upstream publishes the source for exactly that
+# tag at https://github.com/jub0t/Concat/tree/v0.2.8 (AGPL-3.0-or-later).
+# To bump: change the version in the URL, the sha256, and the <release> in the
+# metainfo together. The version is also in the asset name.
+id: org.standalones.Concat
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+command: concat
+build-options:
+  no-debuginfo: true
+finish-args:
+  # Display: Wayland first, X11 only when no Wayland compositor is running.
+  - --socket=wayland
+  - --socket=fallback-x11
+  # X11 shared memory (MIT-SHM); the X11 fallback is slow or fails without it.
+  - --share=ipc
+  # wgpu draws the Slint window and the GPU compositor (Vulkan, GL fallback).
+  - --device=dri
+  # Timeline playback; Concat talks to ALSA, which the runtime routes to
+  # PulseAudio (and so to PipeWire).
+  - --socket=pulseaudio
+  # The optional caption, text-to-speech and cutout models download from
+  # Settings on first use; Settings > Remote can serve the API on a socket.
+  - --share=network
+  # Video projects and footage usually live here, and exports land here too.
+  # Anything else is opened through the file chooser portal, which needs no
+  # permission; --filesystem=home is deliberately not granted.
+  - --filesystem=xdg-videos
+modules:
+  - name: concat
+    buildsystem: simple
+    build-commands:
+      # The deb is an ar container around data.tar.gz; the SDK has binutils and
+      # tar, so it unpacks here rather than needing a tool on the build host.
+      - mkdir -p deb && cd deb && ar x ../concat.deb && tar xf data.tar.*
+      # Upstream's tree, unchanged: concat, lib/ beside it, and the rpath
+      # already points at $ORIGIN/lib.
+      - cp -a deb/opt/concat /app/
+      - install -Dm755 concat-wrapper /app/bin/concat
+      - install -Dm644 org.standalones.Concat.desktop /app/share/applications/org.standalones.Concat.desktop
+      - install -Dm644 org.standalones.Concat.metainfo.xml /app/share/metainfo/org.standalones.Concat.metainfo.xml
+      - install -Dm644 deb/usr/share/icons/hicolor/256x256/apps/concat.png /app/share/icons/hicolor/256x256/apps/org.standalones.Concat.png
+      # CONTRIBUTING.md, section 1: the licence text travels with the app.
+      - install -Dm644 deb/usr/share/doc/concat/LICENSE /app/share/licenses/org.standalones.Concat/LICENSE
+      - install -Dm644 deb/usr/share/doc/concat/THIRD_PARTY_NOTICES.md /app/share/doc/org.standalones.Concat/THIRD_PARTY_NOTICES.md
+    sources:
+      - type: file
+        url: https://github.com/jub0t/Concat/releases/download/v0.2.8/Concat-0.2.8-linux-x86_64.deb
+        sha256: fc570d9b2a49c1a01ef99a7a903e85ba7040e419182c2a7267db84b45686da79
+        dest-filename: concat.deb
+      - type: file
+        path: concat-wrapper
+      - type: file
+        path: org.standalones.Concat.desktop
+      - type: file
+        path: org.standalones.Concat.metainfo.xml

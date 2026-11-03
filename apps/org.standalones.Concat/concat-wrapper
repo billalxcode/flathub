@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+# Concat is installed whole under /app/concat, with the FFmpeg, whisper.cpp and
+# ONNX Runtime libraries it loads beside the binary in /app/concat/lib. The
+# binary's RPATH is $ORIGIN/lib, so it must be started from its own directory.
+#
+# Flatpak redirects $XDG_CONFIG_HOME and $XDG_DATA_HOME, so preferences,
+# presets, logs and the optional caption, speech and cutout models stay inside
+# ~/.var/app/org.standalones.Concat.
+exec /app/concat/concat "$@"
